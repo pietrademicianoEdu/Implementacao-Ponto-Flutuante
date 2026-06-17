@@ -1,19 +1,18 @@
-public class CalculaIEEE754 {
+class CalculaIEEE754 {
 
-    // Método estático pois ele atua como uma função utilitária
     public static String[] converterParaBinario(double numero) {
         if (numero == 0.0) {
             return new String[]{"0", "00000000", "00000000000000000000000"};
         }
 
-        // Definir o Sinal
+        // 1. Definir o Sinal
         String sinal = (numero < 0) ? "1" : "0";
         numero = Math.abs(numero);
 
         long parteInteira = (long) numero;
         double parteFracionaria = numero - parteInteira;
 
-        // Converter parte inteira para binário
+        // 2. Converter parte inteira para binário
         StringBuilder binInteiro = new StringBuilder();
         if (parteInteira == 0) {
             binInteiro.append("0");
@@ -25,7 +24,7 @@ public class CalculaIEEE754 {
             }
         }
 
-        // Converter parte fracionária para binário
+        // 3. Converter parte fracionária para binário
         StringBuilder binFracionario = new StringBuilder();
         double tempFrac = parteFracionaria;
         for (int i = 0; i < 50; i++) {
@@ -39,7 +38,7 @@ public class CalculaIEEE754 {
             if (tempFrac == 0) break;
         }
 
-        // 5. Normalização
+        // 4. Normalização
         int expoenteReal = 0;
         String mantissaCrua = "";
 
@@ -52,20 +51,15 @@ public class CalculaIEEE754 {
             mantissaCrua = binFracionario.substring(primeiroUm + 1);
         }
 
-        // Calcular o Expoente com Viés (127)
+        // 5. Calcular o Expoente com Viés (Base 127 para 32 bits)
         int expoenteVies = expoenteReal + 127;
-        StringBuilder binExpoente = new StringBuilder();
-        int tempExp = expoenteVies;
-        for (int i = 0; i < 8; i++) {
-            binExpoente.insert(0, tempExp % 2);
-            tempExp = tempExp / 2;
-        }
 
-        // Ajuste da Mantissa para exatos 23 bits
+        // 6. Ajuste da Mantissa para exatos 23 bits com arredondamento (Regra do mais próximo)
         String mantissa = "";
         if (mantissaCrua.length() >= 23) {
             mantissa = mantissaCrua.substring(0, 23);
             
+            // Verifica o 24º bit para decidir o arredondamento
             if (mantissaCrua.length() > 23 && mantissaCrua.charAt(23) == '1') {
                 int mantissaInt = Integer.parseInt(mantissa, 2) + 1;
                 mantissa = Integer.toBinaryString(mantissaInt);
@@ -73,8 +67,11 @@ public class CalculaIEEE754 {
                 while (mantissa.length() < 23) {
                     mantissa = "0" + mantissa;
                 }
+                
+                // Trata o overflow da mantissa
                 if (mantissa.length() > 23) {
-                    mantissa = mantissa.substring(1);
+                    mantissa = mantissa.substring(1); // Mantém os 23 bits regulamentares (todos zero)
+                    expoenteVies++;                  
                 }
             }
         } else {
@@ -83,6 +80,14 @@ public class CalculaIEEE754 {
                 pad.append("0");
             }
             mantissa = pad.toString();
+        }
+
+        // Geração do binário do expoente movida para DEPOIS do ajuste da mantissa
+        StringBuilder binExpoente = new StringBuilder();
+        int tempExp = expoenteVies;
+        for (int i = 0; i < 8; i++) {
+            binExpoente.insert(0, tempExp % 2);
+            tempExp = tempExp / 2;
         }
 
         return new String[]{sinal, binExpoente.toString(), mantissa};
